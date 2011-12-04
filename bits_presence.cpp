@@ -25,9 +25,8 @@
 #include "optimistic.h"
 
 using namespace std;
-using namespace boost;
+using namespace boost::gregorian;
 using namespace boost::posix_time;
-using namespace boost::date_time;
 using namespace boost::program_options;
 using namespace mysqlpp;
 
@@ -35,15 +34,15 @@ using namespace mysqlpp;
 const int daysOfWeek=6;
 
 ///Lower block starts at this time: 8:00
-const posix_time::time_duration startTime(8,0,0);
+const time_duration startTime(8,0,0);
 
 ///How many hours to represent in the image, starting from startTime
 const int numBlockPerDay=13;
 
-///How many periods should an hour be split into. Also the # of pixels in a block
+///How many periods should an hour be split into. Also # of pixels in a block
 const int granularity=24;
 
-const posix_time::time_duration offset=posix_time::time_duration(1,0,0)/granularity;
+const time_duration offset=time_duration(1,0,0)/granularity;
 const int numOffsets=numBlockPerDay*granularity;
 
 struct DatabaseData
@@ -137,12 +136,11 @@ void readLog(vector<time_period>& open, const DatabaseData& dbd)
             //If it doesn't, normalize it by splitting in more periods.
             while(pt.date()>saved.date())
             {
-                open.push_back(time_period(
-                        saved,ptime(saved.date(),
-                        posix_time::time_duration(23,59,59))));
+                open.push_back(time_period(saved,ptime(saved.date(),
+                        time_duration(23,59,59))));
 
-                saved=ptime(saved.date()+gregorian::date_duration(1),
-                        posix_time::time_duration(0,0,0));
+                saved=ptime(saved.date()+date_duration(1),
+                        time_duration(0,0,0));
             }
             //If needs to normalize, insert last period, otherwise insert the
             //only period
@@ -191,8 +189,8 @@ int main()
 
     //Used to know when to scale a day, avoiding the error of scaling more
     //than one time if more periods refer to the same day
-    gregorian::date lastPeriodDay;
-    lastPeriodDay=open.at(0).begin().date()-gregorian::date_duration(1);
+    date lastPeriodDay;
+    lastPeriodDay=open.at(0).begin().date()-date_duration(1);
     unsigned char data[daysOfWeek][numBlockPerDay][granularity];
     memset(data,0,sizeof(data));
 
@@ -205,7 +203,7 @@ int main()
 
         while(it->begin().date()!=lastPeriodDay)
         {
-            lastPeriodDay+=gregorian::date_duration(1);
+            lastPeriodDay+=date_duration(1);
             int dow=lastPeriodDay.day_of_week();
             if(dow==0) continue; //Skip sundays
             dow--;//map to range 0=Monday, 5=Saturday
@@ -231,11 +229,11 @@ int main()
         }
     }
 
-    gregorian::date yesterday;
-    yesterday=gregorian::day_clock::local_day()-gregorian::date_duration(1);
+    date yesterday;
+    yesterday=day_clock::local_day()-date_duration(1);
     while(lastPeriodDay<yesterday)
     {
-        lastPeriodDay+=gregorian::date_duration(1);
+        lastPeriodDay+=date_duration(1);
         int dow=lastPeriodDay.day_of_week();
         if(dow==0) continue; //Skip sundays
         dow--;//map to range 0=Monday, 5=Saturday
