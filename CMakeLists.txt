@@ -5,7 +5,7 @@ project(BITS_PRESENCE)
 set(CMAKE_BUILD_TYPE Release)
 
 ## Targets
-set(BITS_SRCS bits_presence.cpp optimistic.cpp)
+set(BITS_SRCS bits_presence.cpp)
 add_executable(bits_presence ${BITS_SRCS})
 
 ## Link libraries

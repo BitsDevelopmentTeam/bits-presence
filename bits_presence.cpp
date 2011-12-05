@@ -18,11 +18,11 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <cmath>
 #include <boost/program_options.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <mysql++.h>
 #include "png++/png.hpp"
-#include "optimistic.h"
 
 using namespace std;
 using namespace boost::gregorian;
@@ -118,7 +118,6 @@ void readLog(vector<time_period>& open, const DatabaseData& dbd)
     Query query=conn.query(dbd.query);
     StoreQueryResult res=query.store();
     if(!res) throw(runtime_error("Database query failed"));
-    //if(res.num_colums()!=2) throw(runtime_error("Query result is wrong"));
 
     int status=1; //We start looking for an open, therefore an 1
     ptime saved;
@@ -246,7 +245,7 @@ int main()
     for(int i=0;i<daysOfWeek;i++)
        for(int j=0;j<numBlockPerDay;j++)
            for(int k=0;k<granularity;k++)
-               data[i][j][k]=optimisticFunction[data[i][j][k]];
+               data[i][j][k]=255*sqrt(data[i][j][k]/255.0);
 
     //Generate output image
     ImageGenerator::generateImage(data,vm["input_image"].as<string>(),
