@@ -45,6 +45,9 @@ const int granularity=24;
 const time_duration offset=time_duration(1,0,0)/granularity;
 const int numOffsets=numBlockPerDay*granularity;
 
+/**
+ * Data required to connect to the database and retrieve data through a query
+ */
 struct DatabaseData
 {
     string database;
@@ -61,14 +64,20 @@ class ImageGenerator
 {
 public:
     /**
-     * Generate the image
-     * \param data array of chars in range [0..255], 0=red, 255=green
      * \param inputFileName png image to use as template
+     */
+    void setInputFilename(const string& s) { inputFileName=s; }
+
+    /**
      * \param outputFileName generated image
      */
-    static void generateImage(
-        unsigned char data[daysOfWeek][numBlockPerDay][granularity],
-        const string& inputFileName, const string& outputFileName)
+    void setOutputFilename(const string& s) { outputFileName=s; }
+
+    /**
+     * Generate the image
+     * \param data array of chars in range [0..255], 0=red, 255=green
+     */
+    void generateFrom(unsigned char data[daysOfWeek][numBlockPerDay][granularity])
     {
         png::image<png::rgb_pixel> img(inputFileName);
         for(int d=0;d<daysOfWeek;d++)
@@ -98,6 +107,8 @@ private:
         }
     }
 
+    string inputFileName, outputFileName;
+    
     static const int xOffset=61;  //x offset of first block
     static const int yOffset=31;  //y offset of first block
     static const int xBlock=50-1; //length of a block
@@ -115,20 +126,20 @@ void readLog(vector<time_period>& open, const DatabaseData& dbd)
     TCPConnection conn(dbd.connection.c_str(),dbd.database.c_str(),
                     dbd.user.c_str(),dbd.password.c_str());
 
+    //Query should return <timestamp, value> tuples in descending order
     Query query=conn.query(dbd.query);
     StoreQueryResult res=query.store();
     if(!res) throw(runtime_error("Database query failed"));
 
     int status=1; //We start looking for an open, therefore an 1
     ptime saved;
-    for(int i=0;i<res.num_rows();i++)
+    for(int i=res.num_rows();i>=0;i--)
     {
         string timestamp(res[i][0]);
         string value(res[i][1]);
-        //cout<<"<"<<timestamp<<","<<value<<">"<<endl;
         if(value.empty() || status!=(value.at(0)-'0')) continue; //Duplicated
         ptime pt(time_from_string(string(res[i][0])));
-        //cout<<pt<<endl;
+        //cout<<"<"<<pt<<","<<value<<">"<<endl;
         if(status==1) saved=pt;
         else {
             //A period should start and end in the same day
@@ -182,14 +193,11 @@ int main()
     dbd.user=vm["user"].as<string>();
     dbd.password=vm["password"].as<string>();
     dbd.query=vm["query"].as<string>();
-    //cout<<"db="<<dbd.database<<"\ncn="<<dbd.connection<<"\nus="<<dbd.user
-    //    <<"\npw="<<dbd.password<<"\nq ="<<dbd.query<<endl;
     readLog(open,dbd);
 
     //Used to know when to scale a day, avoiding the error of scaling more
     //than one time if more periods refer to the same day
-    date lastPeriodDay;
-    lastPeriodDay=open.at(0).begin().date()-date_duration(1);
+    date lastPeriodDay=open.at(0).begin().date()-date_duration(1);
     unsigned char data[daysOfWeek][numBlockPerDay][granularity];
     memset(data,0,sizeof(data));
 
@@ -228,8 +236,7 @@ int main()
         }
     }
 
-    date yesterday;
-    yesterday=day_clock::local_day()-date_duration(1);
+    date yesterday=day_clock::local_day()-date_duration(1);
     while(lastPeriodDay<yesterday)
     {
         lastPeriodDay+=date_duration(1);
@@ -248,6 +255,8 @@ int main()
                data[i][j][k]=255*sqrt(data[i][j][k]/255.0);
 
     //Generate output image
-    ImageGenerator::generateImage(data,vm["input_image"].as<string>(),
-        vm["output_image"].as<string>());
+    ImageGenerator img;
+    img.setInputFilename(vm["input_image"].as<string>());
+    img.setOutputFilename(vm["output_image"].as<string>());
+    img.generateFrom(data);
 }
