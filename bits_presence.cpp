@@ -133,7 +133,7 @@ void readLog(vector<time_period>& open, const DatabaseData& dbd)
 
     int status=1; //We start looking for an open, therefore an 1
     ptime saved;
-    for(int i=res.num_rows();i>=0;i--)
+    for(int i=res.num_rows()-1;i>=0;i--)
     {
         string timestamp(res[i][0]);
         string value(res[i][1]);
