@@ -76,12 +76,14 @@ public:
     /**
      * Generate the image
      * \param data array of chars in range [0..255], 0=red, 255=green
+     * \param gs true if the image has to be grayscale, false if color
      */
-    void generateFrom(unsigned char data[daysOfWeek][numBlockPerDay][granularity])
+    void generateFrom(unsigned char data[daysOfWeek][numBlockPerDay][granularity],
+            bool gs=false)
     {
         png::image<png::rgb_pixel> img(inputFileName);
         for(int d=0;d<daysOfWeek;d++)
-            for(int b=0;b<numBlockPerDay;b++) drawBlock(img,data[d][b],d,b);
+            for(int b=0;b<numBlockPerDay;b++) drawBlock(img,data[d][b],d,b,gs);
         img.write(outputFileName);
     }
 
@@ -92,16 +94,23 @@ private:
      * \param block array of colors, [0..255], 0=red, 255=green
      * \param d which day? (x coord)
      * \param b which hour (y coord)
+     * \param gs true if the image has to be grayscale, false if color
      */
     static void drawBlock(png::image<png::rgb_pixel>& img,
-            unsigned char block[granularity], int d, int b)
+            unsigned char block[granularity], int d, int b, bool gs)
     {
         for(int y=0;y<granularity;y++)
         {
             int color=block[y];
-            int g=min(255,color*2);
-            int r=min(255,(255-color)*2);
-            png::rgb_pixel pixel(r,g,0);
+            png::rgb_pixel pixel;
+            if(gs==false)
+            {
+                int g=min(255,color*2);
+                int r=min(255,(255-color)*2);
+                pixel=png::rgb_pixel(r,g,0);
+            } else {
+                pixel=png::rgb_pixel(color,color,color);
+            }
             for(int x=0;x<xBlock;x++)
                 img[yOffset+b*(granularity+1)+y][xOffset+d*(xBlock+1)+x]=pixel;
         }
@@ -172,6 +181,7 @@ int main()
         ("query",value<string>())
         ("input_image",value<string>())
         ("output_image",value<string>())
+        ("output_image_grayscale",value<string>())
     ;
     variables_map vm;
     ifstream configFile("bits_presence.conf");
@@ -259,4 +269,9 @@ int main()
     img.setInputFilename(vm["input_image"].as<string>());
     img.setOutputFilename(vm["output_image"].as<string>());
     img.generateFrom(data);
+    if(vm.count("output_image_grayscale"))
+    {
+        img.setOutputFilename(vm["output_image_grayscale"].as<string>());
+        img.generateFrom(data,true);
+    }
 }
